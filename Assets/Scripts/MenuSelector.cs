@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MenuSelector : MonoBehaviour
 {
@@ -38,6 +39,13 @@ public class MenuSelector : MonoBehaviour
 
         if (this.menuItems[this.idxSelected]) {
             this.menuItems[this.idxSelected].transform.Rotate(0f,100f*Time.deltaTime,0f, Space.Self);
+        }
+
+        if (Input.GetButton("Submit")) {
+            if (idxSelected == 0) {
+                idxSelected = -1;
+                SceneManager.LoadScene("GameTest");
+            }
         }
     }
 }
