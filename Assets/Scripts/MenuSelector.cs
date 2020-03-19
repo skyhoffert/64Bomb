@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class MenuSelector : MonoBehaviour
-{
+public class MenuSelector : MonoBehaviour {
     public GameObject[] menuItems;
 
     private int idxSelected;
@@ -45,6 +44,12 @@ public class MenuSelector : MonoBehaviour
             if (idxSelected == 0) {
                 idxSelected = -1;
                 SceneManager.LoadScene("GameTest");
+            } else if (idxSelected == 2) {
+                #if UNITY_EDITOR
+                    UnityEditor.EditorApplication.isPlaying = false;
+                #else
+                    Application.Quit();
+                #endif
             }
         }
     }
