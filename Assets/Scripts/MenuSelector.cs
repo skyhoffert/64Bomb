@@ -40,10 +40,11 @@ public class MenuSelector : MonoBehaviour {
             this.menuItems[this.idxSelected].transform.Rotate(0f,100f*Time.deltaTime,0f, Space.Self);
         }
 
-        if (Input.GetButton("Submit")) {
+        if (Input.GetButtonDown("Submit")) {
             if (idxSelected == 0) {
                 idxSelected = -1;
                 SceneManager.LoadScene("GameTest");
+            } else if (idxSelected == 1) {
             } else if (idxSelected == 2) {
                 #if UNITY_EDITOR
                     UnityEditor.EditorApplication.isPlaying = false;

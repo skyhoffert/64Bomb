@@ -83,7 +83,7 @@ public class PlayerControllerLocal : MonoBehaviour {
 
         if (jcd > 0) {
             jcd -= Time.deltaTime;
-        } else if (hasJump && Input.GetButton("Jump")) {
+        } else if (hasJump && Input.GetButtonDown("Jump")) {
             hasJump = false;
             jcd = jcdMax;
             rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
