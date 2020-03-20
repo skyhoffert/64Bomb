@@ -29,7 +29,7 @@ public class NetworkScript : MonoBehaviour {
             try {
                 buf = udpClient.Receive(ref endPoint);
                 Debug.Log("rx from " + endPoint.Address.ToString() + ":" + endPoint.Port.ToString());
-            } catch (SocketException e) {
+            } catch (SocketException) {
             }
         }
     }
