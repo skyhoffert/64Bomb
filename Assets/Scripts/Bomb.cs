@@ -18,10 +18,13 @@ public class Bomb : MonoBehaviour {
         } else {
             GameObject[] terrBlocks = GameObject.FindGameObjectsWithTag("Terrain");
             foreach (GameObject t in terrBlocks) {
+                t.GetComponent<MeshPlaneTerrainGenScript>().CheckExplosion(this.transform.position);
+                /*
                 float dist = (t.transform.position - transform.position).sqrMagnitude;
                 if (dist < 10f) {
                     Destroy(t);
                 }
+                */
             }
 
             GameObject[] players = GameObject.FindGameObjectsWithTag("Player");

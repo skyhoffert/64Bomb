@@ -13,7 +13,7 @@ public class PlayerControllerLocal : MonoBehaviour {
     public float height = 5;
     public float distance = 10;
     private float angle;
-    private float fAmount = 10f;
+    private float fAmount = 2f;
     private float rotAmount = 10f;
     private float jumpForce = 120f;
     private float fallAdd = -0.03f;
@@ -23,6 +23,8 @@ public class PlayerControllerLocal : MonoBehaviour {
     private float jcd = 0;
     private float jcdMax = 0.5f;
     private float jVM = 0.1f;
+
+    public GameObject DEBUG_BOMB;
 
     void Start() {
         rigidBody = target.GetComponent<Rigidbody>();
@@ -103,6 +105,11 @@ public class PlayerControllerLocal : MonoBehaviour {
         if (target.transform.position.y < -100) {
             rigidBody.velocity = new Vector3(0,0,0);
             target.transform.position = new Vector3(0,0,0);
+        }
+
+        if (Input.GetKeyDown("p")) {
+            GameObject go = Instantiate(DEBUG_BOMB);
+            go.transform.position = target.transform.position + new Vector3(0,8,0);
         }
     }
 
