@@ -4,10 +4,12 @@ using UnityEngine;
 
 public class Bomb : MonoBehaviour {
 
-    private float ttl = 8f;
+    private float ttl;
     public GameObject explosion;
     
     void Start() {
+        ttl = 5f + Random.value*3f;
+        transform.eulerAngles = new Vector3(Random.value*360, Random.value*360, Random.value*360);
     }
 
     void Update() {
@@ -19,12 +21,18 @@ public class Bomb : MonoBehaviour {
             GameObject[] terrBlocks = GameObject.FindGameObjectsWithTag("Terrain");
             foreach (GameObject t in terrBlocks) {
                 t.GetComponent<MeshPlaneTerrainGenScript>().CheckExplosion(this.transform.position);
-                /*
-                float dist = (t.transform.position - transform.position).sqrMagnitude;
-                if (dist < 10f) {
-                    Destroy(t);
+            }
+
+            GameObject[] bombs = GameObject.FindGameObjectsWithTag("Bomb");
+            foreach (GameObject b in bombs) {
+                if (!b || b == this.gameObject) { continue; }
+                Vector3 dv = b.transform.position - transform.position;
+                float dist = dv.sqrMagnitude;
+                if (dist <= 0) { continue; }
+                if (dist < 40f) {
+                    Vector3 fv = dv * 1000f / dist;
+                    b.GetComponent<Rigidbody>().AddForce(fv, ForceMode.Impulse);
                 }
-                */
             }
 
             GameObject[] players = GameObject.FindGameObjectsWithTag("Player");

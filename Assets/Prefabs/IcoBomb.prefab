@@ -15,8 +15,8 @@ GameObject:
   - component: {fileID: 215354623538964343}
   - component: {fileID: 729122387422156394}
   m_Layer: 0
-  m_Name: IcoBombMeshVer
-  m_TagString: Untagged
+  m_Name: IcoBomb
+  m_TagString: Bomb
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

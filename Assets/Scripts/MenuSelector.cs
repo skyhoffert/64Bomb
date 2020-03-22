@@ -4,7 +4,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MenuSelector : MonoBehaviour {
+
     public GameObject[] menuItems;
+    public Camera cam;
 
     private int idxSelected;
     private bool justMoved;
@@ -43,15 +45,54 @@ public class MenuSelector : MonoBehaviour {
         if (Input.GetButtonDown("Submit")) {
             if (idxSelected == 0) {
                 idxSelected = -1;
-                SceneManager.LoadScene("GameTest");
+                EnterGame();
             } else if (idxSelected == 1) {
+                EnterSettings();
             } else if (idxSelected == 2) {
-                #if UNITY_EDITOR
-                    UnityEditor.EditorApplication.isPlaying = false;
-                #else
-                    Application.Quit();
-                #endif
+                Quit();
+            }
+        } else if (Input.GetMouseButtonDown(0)) {
+            RaycastHit hit;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out hit)) {
+                GameObject objectHit = hit.transform.gameObject;
+                if (objectHit == menuItems[0]) {
+                    EnterGame();
+                } else if (objectHit == menuItems[1]) {
+                    EnterSettings();
+                } else if (objectHit == menuItems[2]) {
+                    Quit();
+                }
+            }
+        } else {
+            RaycastHit hit;
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out hit)) {
+                GameObject objectHit = hit.transform.gameObject;
+                if (objectHit == menuItems[0]) {
+                    idxSelected = 0;
+                } else if (objectHit == menuItems[1]) {
+                    idxSelected = 1;
+                } else if (objectHit == menuItems[2]) {
+                    idxSelected = 2;
+                }
             }
         }
+    }
+
+    private void EnterGame() {
+        SceneManager.LoadScene("GameTest");
+    }
+
+    private void EnterSettings() {
+        SceneManager.LoadScene("Settings");
+    }
+
+    private void Quit() {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
 }

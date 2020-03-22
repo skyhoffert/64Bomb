@@ -34,7 +34,7 @@ public class MeshPlaneTerrainGenScript : MonoBehaviour {
         GameObject plane = new GameObject("Plane");
 
         MeshRenderer mr = plane.AddComponent<MeshRenderer>();
-        mr.material = Resources.Load<Material>("Green");
+        mr.material = Resources.Load<Material>("Grass");
 
         MeshFilter mf = plane.AddComponent<MeshFilter>();
         mesh = new Mesh();
@@ -77,8 +77,14 @@ public class MeshPlaneTerrainGenScript : MonoBehaviour {
         mesh.triangles = triangles.ToArray();
 
         List<Vector2> uv = new List<Vector2>();
-        for (int i = 0; i < vertices.Length; i++) {
+        // TODO: fix this
+        for (int i = 0; i < nVerts/3+1; i++) {
             uv.Add(new Vector2(0f,0f));
+            uv.Add(new Vector2(0f,1f));
+            uv.Add(new Vector2(1f,1f));
+        }
+        if (uv.Count > nVerts) {
+            uv.RemoveRange(nVerts,uv.Count-nVerts);
         }
         mesh.uv = uv.ToArray();
 

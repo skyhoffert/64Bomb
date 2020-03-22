@@ -13,7 +13,7 @@ public class BombSpawner : MonoBehaviour {
     void Start() {
     }
 
-    void Update() {
+    void FixedUpdate() {
         if (Time.timeScale <= 0f) {
             return;
         }
