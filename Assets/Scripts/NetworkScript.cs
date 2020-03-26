@@ -28,14 +28,28 @@ public class NetworkScript : MonoBehaviour {
         while (thrActive) {
             try {
                 buf = udpClient.Receive(ref endPoint);
-                Debug.Log("rx from " + endPoint.Address.ToString() + ":" + endPoint.Port.ToString());
+                //Debug.Log("rx from " + endPoint.Address.ToString() + ":" + endPoint.Port.ToString());
             } catch (SocketException) {
+                continue;
+            }
+
+            if (buf[2] == 0x02) {
+                Debug.Log("Got pinged.");
+                Byte[] msg = new Byte[4];
+                msg[0] = 0x01;
+                msg[1] = 0x00;
+                msg[2] = 0x03;
+                msg[3] = 0x00;
+                udpClient.Send(msg, msg.Length, "127.0.0.1", 5000);
             }
         }
     }
 
     void TxThread() {
-        Byte[] msg = Encoding.ASCII.GetBytes("Hi from Unity.");
+        Byte[] msg = new Byte[3];
+        msg[0] = 0x01;
+        msg[1] = 0x00;
+        msg[2] = 0x02;
         udpClient.Send(msg, msg.Length, "127.0.0.1", 5000);
 
         while (thrActive) {

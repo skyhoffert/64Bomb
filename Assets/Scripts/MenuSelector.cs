@@ -17,6 +17,10 @@ public class MenuSelector : MonoBehaviour {
         this.idxSelected = 0;
         this.deadZone = 0.1f;
         this.justMoved = false;
+
+        // Update user prefs every session.
+        PlayerPrefs.SetString("ServerIP", "127.0.0.1");
+        PlayerPrefs.SetInt("ServerPort", 5000);
     }
 
     // Update is called once per frame
@@ -81,7 +85,7 @@ public class MenuSelector : MonoBehaviour {
     }
 
     private void EnterGame() {
-        SceneManager.LoadScene("GameTest");
+        SceneManager.LoadScene("LobbySelect");
     }
 
     private void EnterSettings() {
