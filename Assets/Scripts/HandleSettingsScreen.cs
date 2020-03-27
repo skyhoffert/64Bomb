@@ -17,9 +17,7 @@ public class HandleSettingsScreen : MonoBehaviour {
     public Text txtIP;
 
     void Start() {
-        if (slMouseSens) {
-            slMouseSens.value = PlayerPrefs.GetFloat("MouseSens",0.5f);
-        }
+        slMouseSens.value = PlayerPrefs.GetFloat("MouseSens",0.5f);
 
         placeholderForIP.text = PlayerPrefs.GetString("ServerIP", "127.0.0.1");
         placeholderForPort.text = ""+PlayerPrefs.GetInt("ServerPort", 5000);
@@ -37,7 +35,7 @@ public class HandleSettingsScreen : MonoBehaviour {
                 Debug.Log("Bad Port Number");
                 return;
             }
-            Debug.Log("Updated server port to "+port);
+
             PlayerPrefs.SetInt("ServerPort", port);
         } else {
             Debug.Log("Invalid Port");
@@ -45,12 +43,11 @@ public class HandleSettingsScreen : MonoBehaviour {
     }
 
     public void ExitPressed() {
+        PlayerPrefs.Save();
         SceneManager.LoadScene("SampleScene");
     }
 
     public void SliderChange() {
-        if (slMouseSens) {
-            PlayerPrefs.SetFloat("MouseSens",slMouseSens.value);
-        }
+        PlayerPrefs.SetFloat("MouseSens", slMouseSens.value);
     }
 }
