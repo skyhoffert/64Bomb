@@ -4,57 +4,54 @@ using UnityEngine;
 
 using System; // for Byte
 
-public class HostScript : MonoBehaviour {
+public class ClientScript : MonoBehaviour {
 
     public GameObject network;
 
     private Queue rxQ;
     private Queue txQ;
 
-    private Connection[] clientConns;
+    private Connection hostConn;
 
-    private const int MAX_CONNS = 1;
-
-    private bool permissionToHost = false;
-    private int clientConnsAdded = 0;
+    private bool permissionToConnect = false;
+    private bool hasConnected = false;
 
     void Start() {
         Init();
     }
 
     void Init() {
-        rxQ = network.GetComponent<NetworkScript>().rxQ;
-        txQ = network.GetComponent<NetworkScript>().txQ;
-
+        this.rxQ = network.GetComponent<NetworkScript>().rxQ;
+        this.txQ = network.GetComponent<NetworkScript>().txQ;
+        
         if (rxQ is null) {
             return;
         }
-        
+
         Byte[] msg = new Byte[3];
         msg[0] = 0x01;
         msg[1] = 0x00;
         msg[2] = 0x02;
         txQ.Enqueue(msg);
 
-        // Ask now if you can host.
+        // Ask now if you can connect.
         msg = new Byte[4];
         msg[0] = 0x01;
         msg[1] = 0x00;
-        msg[2] = 0x06;
+        msg[2] = 0x0d;
         msg[3] = 0x00;
-        txQ.Enqueue(msg);
+        this.txQ.Enqueue(msg);
 
-        clientConns = new Connection[MAX_CONNS];
-        clientConns[0] = new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000));
+        this.hostConn = new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000));
     }
 
     void Update() {
-        if (rxQ is null) {
+        if (this.rxQ is null) {
             Init();
             return;
         }
 
-        if (rxQ.Count > 0) {
+        if (this.rxQ.Count > 0) {
             Byte[] buf = (Byte[]) rxQ.Dequeue();
 
             if (buf[2] == 0x02) { // PING
@@ -68,33 +65,33 @@ public class HostScript : MonoBehaviour {
                 // TODO: this is slow!
                 float ping = network.GetComponent<NetworkScript>().ping;
                 Debug.Log("Server ping: " + ping + " ms");
-            } else if (buf[2] == 0x07) { // YOU_CAN_HOST
+            } else if (buf[2] == 0x07) { // YOU_CAN_CONNECT
                 if (buf[3] == 0x00) {
                     Byte[] msg = new Byte[4];
                     msg[0] = 0x01;
-                    msg[1] = 0x42;
-                    msg[2] = 0x08;
+                    msg[1] = 0x43; // I_WILL_CONNECT
+                    msg[2] = 0x0f;
                     msg[3] = 0x00;
                     txQ.Enqueue(msg);
                 } else {
-                    Debug.Log("You CANNOT host :(");
+                    Debug.Log("You CANNOT connect :(");
                 }
-            } else if (buf[2] == 0x09) { // YOU_WILL_HOST
-                if (buf[3] == 0x42) {
+            } else if (buf[2] == 0x10) { // YOU_WILL_CONNECT
+                if (buf[3] == 0x43) {
                     Byte[] msg = new Byte[4];
                     msg[0] = 0x01;
                     msg[1] = 0x00;
-                    msg[2] = 0x0a;
+                    msg[2] = 0x11; // ACK_I_WILL_CONNECT
                     msg[3] = buf[1];
                     txQ.Enqueue(msg);
-                    Debug.Log("You sent ACK_I_WILL_HOST");
-                    this.permissionToHost = true;
+                    Debug.Log("You sent ACK_I_WILL_CONNECT");
+                    this.permissionToConnect = true;
                 }
             }
         }
 
-        if (clientConns[0].rxQ.Count > 0) {
-            Byte[] buf = (Byte[]) clientConns[0].rxQ.Dequeue();
+        if (this.hostConn.rxQ.Count > 0) {
+            Byte[] buf = (Byte[]) hostConn.rxQ.Dequeue();
 
             if (buf[2] == 0x02) { // PING
                 Byte[] msg = new Byte[4];
@@ -102,30 +99,30 @@ public class HostScript : MonoBehaviour {
                 msg[1] = 0x00;
                 msg[2] = 0x03;
                 msg[3] = buf[1];
-                clientConns[0].txQ.Enqueue(msg);
+                hostConn.txQ.Enqueue(msg);
             } else if (buf[2] == 0x03) { // PONG
-                Debug.Log("Client ping: " + clientConns[0].ping + " ms");
-            } else if (buf[2] == 0x0c) { // ACK_HOST_CONNECTION
-                Debug.Log("ACK_HOST_CONNECTION");
+                Debug.Log("Host ping: " + hostConn.ping + " ms");
+            } else if (buf[2] == 0x0c) { // ACK_CLIENT_CONNECTION
+                Debug.Log("ACK_CLIENT_CONNECTION");
                 Byte[] msg = new Byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x02;
-                clientConns[0].txQ.Enqueue(msg);
-            }
-            
-            // TODO: handle HERE_CLIENT_ADDRESS
+                hostConn.txQ.Enqueue(msg);
+            } 
+
+            // TODO: handle HERE_HOST_ADDRESS
         }
 
-        if (this.permissionToHost && this.clientConnsAdded == 0) {
-            // ADD_HOST_CONNECTION
+        if (this.permissionToConnect && !this.hasConnected) {
+            // ADD_CLIENT_CONNECTION
             Byte[] msg = new Byte[4];
             msg[0] = 0x01;
             msg[1] = 0x00;
-            msg[2] = 0x0b;
+            msg[2] = 0x12;
             msg[3] = 0x00;
-            clientConns[0].txQ.Enqueue(msg);
-            this.clientConnsAdded++;
+            hostConn.txQ.Enqueue(msg);
+            this.hasConnected = true;
         }
     }
 }

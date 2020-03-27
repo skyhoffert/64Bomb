@@ -8,7 +8,7 @@ using System.Text; // for Encoding
 using System.Net.Sockets; // for UdpClient
 using System.Net; // for IPEndPoint
 
-public class NetworkScript : MonoBehaviour {
+public class Connection {
 
     private Thread thrRx;
     private Thread thrTx;
@@ -21,16 +21,16 @@ public class NetworkScript : MonoBehaviour {
     private int rxTimeout = 100; // ms
     private int rxBufferSize = 4096; // Bytes
     private int txSleepTime = 100; // ms
-
+    
     private String serverIP;
     private int serverPort;
-
+    
     public float ping; // In this file to provide accurate time measurement between ping and pong.
     private float pingSentTime; // TODO: only works for a single ping and doesn't check ID.
 
-    void Start() {
-        serverIP = PlayerPrefs.GetString("ServerIP", "127.0.0.1");
-        serverPort = PlayerPrefs.GetInt("ServerPort", 5000);
+    public Connection(String ip, int port) {
+        serverIP = ip;
+        serverPort = port;
 
         ping = -1;
 
@@ -51,26 +51,15 @@ public class NetworkScript : MonoBehaviour {
 
         thrRx.Start();
         thrTx.Start();
-
-        // Attempt to ping the server.
-        Byte[] msg = new Byte[4];
-        msg[0] = 0x01;
-        msg[1] = 0x00;
-        msg[2] = 0x02;
-        txQ.Enqueue(msg);
     }
 
-    void Update() {
-        // TODO: handle rx queue
-    }
-    
-    void OnDestroy() {
+    ~Connection() {
         // Kill the connection.
         Byte[] msg = new Byte[3];
         msg[0] = 0x01;
         msg[1] = 0x00;
         msg[2] = 0xff;
-        udpClient.Send(msg, msg.Length, IP, PORT);
+        udpClient.Send(msg, msg.Length, serverIP, serverPort);
 
         thrActive = false;
 
@@ -118,5 +107,26 @@ public class NetworkScript : MonoBehaviour {
                 Thread.Sleep(txSleepTime);
             }
         }
+    }
+}
+
+public class NetworkScript : MonoBehaviour {
+
+    private Connection serverConn;
+
+    public Queue rxQ;
+    public Queue txQ;
+
+    public float ping;
+
+    void Start() {
+        serverConn = new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000));
+
+        this.rxQ = serverConn.rxQ;
+        this.txQ = serverConn.txQ;
+    }
+
+    void Update() {
+        this.ping = serverConn.ping;
     }
 }
