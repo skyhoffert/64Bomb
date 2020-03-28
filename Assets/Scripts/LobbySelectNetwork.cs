@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 using System.Threading;
 using System; // for Byte
@@ -10,6 +11,8 @@ using System.Net.Sockets; // for UdpClient
 using System.Net; // for IPEndPoint
 
 public class LobbySelectNetwork : MonoBehaviour {
+
+    // TODO: this script has too much in it, move things to LobbySelectScript
 
     public Text txt_serverStatus;
     public Text txt_hostStatus;
@@ -133,17 +136,21 @@ public class LobbySelectNetwork : MonoBehaviour {
             msg[3] = 0x00;
             udpClient.Send(msg, msg.Length, IP, PORT);
         } else {
-            // TODO
+            SceneManager.LoadScene("GameAsHost");
         }
     }
 
     public void JoinGameClicked() {
-        Byte[] msg = new Byte[4];
-        msg[0] = 0x01;
-        msg[1] = 0x00;
-        msg[2] = 0x0d;
-        msg[3] = 0x00;
-        udpClient.Send(msg, msg.Length, IP, PORT);
+        if (!canJoin) {
+            Byte[] msg = new Byte[4];
+            msg[0] = 0x01;
+            msg[1] = 0x00;
+            msg[2] = 0x0d;
+            msg[3] = 0x00;
+            udpClient.Send(msg, msg.Length, IP, PORT);
+        } else {
+            SceneManager.LoadScene("GameAsClient");
+        }
     }
     
     void OnDestroy() {

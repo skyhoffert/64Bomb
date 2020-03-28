@@ -10,6 +10,27 @@ using System.Net; // for IPEndPoint
 
 public class Connection {
 
+    public static String IPBufToStr(Byte[] buf, int idx) {
+        String str = "";
+        str += ((int)buf[idx+0]).ToString();
+        str += ".";
+        str += ((int)buf[idx+1]).ToString();
+        str += ".";
+        str += ((int)buf[idx+2]).ToString();
+        str += ".";
+        str += ((int)buf[idx+3]).ToString();
+        return str;
+    }
+
+    public static int PortBufToInt(Byte[] buf, int idx) {
+        int p = 0;
+        p += ((int)buf[idx+0] << 24);
+        p += ((int)buf[idx+1] << 16);
+        p += ((int)buf[idx+2] << 8);
+        p += ((int)buf[idx+3] << 0);
+        return p;
+    }
+
     private Thread thrRx;
     private Thread thrTx;
     private bool thrActive;
@@ -27,6 +48,9 @@ public class Connection {
     
     public float ping; // In this file to provide accurate time measurement between ping and pong.
     private float pingSentTime; // TODO: only works for a single ping and doesn't check ID.
+
+    private bool rxChange = false;
+    private bool txChange = false;
 
     public Connection(String ip, int port) {
         serverIP = ip;
@@ -68,12 +92,25 @@ public class Connection {
 
         udpClient.Close();
     }
+
+    public void Connect(String ip, int port) {
+        txChange = true;
+        rxChange = true;
+        serverIP = ip;
+        serverPort = port;
+    }
     
     void RxThread() {
         IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
         Byte[] buf;
 
         while (thrActive) {
+            if (rxChange) {
+                Thread.Sleep(txSleepTime);
+                rxChange = false;
+                continue;
+            }
+
             try {
                 buf = udpClient.Receive(ref endPoint);
                 //Debug.Log("rx from " + endPoint.Address.ToString() + ":" + endPoint.Port.ToString());
@@ -92,6 +129,12 @@ public class Connection {
 
     void TxThread() {
         while (thrActive) {
+            if (txChange) {
+                Thread.Sleep(txSleepTime);
+                txChange = false;
+                continue;
+            }
+
             if (txQ.Count > 0) {
                 Byte[] dq = (Byte[])txQ.Dequeue();
                 if (dq[0] == 0x00) {

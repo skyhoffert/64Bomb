@@ -1,12 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 using System; // for Byte
 
 public class ClientScript : MonoBehaviour {
 
     public GameObject network;
+
+    public Text txtLog;
 
     private Queue rxQ;
     private Queue txQ;
@@ -64,19 +68,20 @@ public class ClientScript : MonoBehaviour {
             } else if (buf[2] == 0x03) { // PONG
                 // TODO: this is slow!
                 float ping = network.GetComponent<NetworkScript>().ping;
-                Debug.Log("Server ping: " + ping + " ms");
-            } else if (buf[2] == 0x07) { // YOU_CAN_CONNECT
+                txtLog.text += ("Server ping: " + ping + " ms\n");
+            } else if (buf[2] == 0x0e) { // YOU_CAN_CONNECT
                 if (buf[3] == 0x00) {
                     Byte[] msg = new Byte[4];
                     msg[0] = 0x01;
-                    msg[1] = 0x43; // I_WILL_CONNECT
-                    msg[2] = 0x0f;
+                    msg[1] = 0x43;
+                    msg[2] = 0x0f; // I_WILL_CONNECT
                     msg[3] = 0x00;
                     txQ.Enqueue(msg);
                 } else {
-                    Debug.Log("You CANNOT connect :(");
+                    txtLog.text += ("You CANNOT connect :(\n");
                 }
             } else if (buf[2] == 0x10) { // YOU_WILL_CONNECT
+                txtLog.text += ("got a you_will_connect message.\n");
                 if (buf[3] == 0x43) {
                     Byte[] msg = new Byte[4];
                     msg[0] = 0x01;
@@ -84,8 +89,10 @@ public class ClientScript : MonoBehaviour {
                     msg[2] = 0x11; // ACK_I_WILL_CONNECT
                     msg[3] = buf[1];
                     txQ.Enqueue(msg);
-                    Debug.Log("You sent ACK_I_WILL_CONNECT");
+                    txtLog.text +=  ("You sent ACK_I_WILL_CONNECT\n");
                     this.permissionToConnect = true;
+                } else {
+                    txtLog.text += ("bad code. "+buf[3]+"\n");
                 }
             }
         }
@@ -101,17 +108,31 @@ public class ClientScript : MonoBehaviour {
                 msg[3] = buf[1];
                 hostConn.txQ.Enqueue(msg);
             } else if (buf[2] == 0x03) { // PONG
-                Debug.Log("Host ping: " + hostConn.ping + " ms");
-            } else if (buf[2] == 0x0c) { // ACK_CLIENT_CONNECTION
-                Debug.Log("ACK_CLIENT_CONNECTION");
+                txtLog.text += ("Host ping: " + hostConn.ping + " ms\n");
+            } else if (buf[2] == 0x13) { // ACK_CLIENT_CONNECTION
+                txtLog.text += ("ACK_CLIENT_CONNECTION\n");
                 Byte[] msg = new Byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x02;
                 hostConn.txQ.Enqueue(msg);
-            } 
+            } else if (buf[2] == 0x14) { // HERE_HOST_ADDRESS
+                String IP = Connection.IPBufToStr(buf, 3);
+                txtLog.text += ("Got IP: " + IP + "\n");
+                int port = Connection.PortBufToInt(buf, 7);
+                txtLog.text += ("Got Port: " + port + "\n");
 
-            // TODO: handle HERE_HOST_ADDRESS
+                hostConn.Connect(IP, port);
+                
+                // Send 3 pings
+                Byte[] msg = new Byte[3];
+                msg[0] = 0x01;
+                msg[1] = 0x00;
+                msg[2] = 0x02;
+                hostConn.txQ.Enqueue(msg);
+                hostConn.txQ.Enqueue(msg);
+                hostConn.txQ.Enqueue(msg);
+            }
         }
 
         if (this.permissionToConnect && !this.hasConnected) {
@@ -123,6 +144,10 @@ public class ClientScript : MonoBehaviour {
             msg[3] = 0x00;
             hostConn.txQ.Enqueue(msg);
             this.hasConnected = true;
+        }
+        
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            SceneManager.LoadScene("SampleScene");
         }
     }
 }
