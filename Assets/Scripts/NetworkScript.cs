@@ -56,7 +56,7 @@ public class Connection {
         serverIP = ip;
         serverPort = port;
 
-        ping = -1;
+        ping = 1000000;
 
         // Create thread-safe tx and rx queues.
         rxQ = Queue.Synchronized(new Queue());

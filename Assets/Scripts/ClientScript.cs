@@ -9,6 +9,9 @@ using System; // for Byte
 public class ClientScript : MonoBehaviour {
 
     public GameObject network;
+    
+    public GameObject[] staticObjs;
+    public GameObject[] dynamicObjs;
 
     public Text txtLog;
 
@@ -19,6 +22,8 @@ public class ClientScript : MonoBehaviour {
 
     private bool permissionToConnect = false;
     private bool hasConnected = false;
+    
+    private float lastPingSentStopwatch = 0;
 
     void Start() {
         Init();
@@ -68,7 +73,7 @@ public class ClientScript : MonoBehaviour {
             } else if (buf[2] == 0x03) { // PONG
                 // TODO: this is slow!
                 float ping = network.GetComponent<NetworkScript>().ping;
-                txtLog.text += ("Server ping: " + ping + " ms\n");
+                Log("Server ping: " + ping + " ms");
             } else if (buf[2] == 0x0e) { // YOU_CAN_CONNECT
                 if (buf[3] == 0x00) {
                     Byte[] msg = new Byte[4];
@@ -78,10 +83,10 @@ public class ClientScript : MonoBehaviour {
                     msg[3] = 0x00;
                     txQ.Enqueue(msg);
                 } else {
-                    txtLog.text += ("You CANNOT connect :(\n");
+                    Log("You CANNOT connect :(");
                 }
             } else if (buf[2] == 0x10) { // YOU_WILL_CONNECT
-                txtLog.text += ("got a you_will_connect message.\n");
+                Log("got a you_will_connect message.");
                 if (buf[3] == 0x43) {
                     Byte[] msg = new Byte[4];
                     msg[0] = 0x01;
@@ -89,10 +94,10 @@ public class ClientScript : MonoBehaviour {
                     msg[2] = 0x11; // ACK_I_WILL_CONNECT
                     msg[3] = buf[1];
                     txQ.Enqueue(msg);
-                    txtLog.text +=  ("You sent ACK_I_WILL_CONNECT\n");
+                    Log ("You sent ACK_I_WILL_CONNECT");
                     this.permissionToConnect = true;
                 } else {
-                    txtLog.text += ("bad code. "+buf[3]+"\n");
+                    Log("bad code. "+buf[3]+"");
                 }
             }
         }
@@ -108,9 +113,9 @@ public class ClientScript : MonoBehaviour {
                 msg[3] = buf[1];
                 hostConn.txQ.Enqueue(msg);
             } else if (buf[2] == 0x03) { // PONG
-                txtLog.text += ("Host ping: " + hostConn.ping + " ms\n");
+                Log("Host ping: " + hostConn.ping + " ms");
             } else if (buf[2] == 0x13) { // ACK_CLIENT_CONNECTION
-                txtLog.text += ("ACK_CLIENT_CONNECTION\n");
+                Log("ACK_CLIENT_CONNECTION");
                 Byte[] msg = new Byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
@@ -118,9 +123,9 @@ public class ClientScript : MonoBehaviour {
                 hostConn.txQ.Enqueue(msg);
             } else if (buf[2] == 0x14) { // HERE_HOST_ADDRESS
                 String IP = Connection.IPBufToStr(buf, 3);
-                txtLog.text += ("Got IP: " + IP + "\n");
+                Log("Got IP: " + IP + "");
                 int port = Connection.PortBufToInt(buf, 7);
-                txtLog.text += ("Got Port: " + port + "\n");
+                Log("Got Port: " + port + "");
 
                 hostConn.Connect(IP, port);
                 
@@ -149,5 +154,23 @@ public class ClientScript : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.Escape)) {
             SceneManager.LoadScene("SampleScene");
         }
+
+        if (this.hasConnected) {
+            if (this.lastPingSentStopwatch < 1) {
+                this.lastPingSentStopwatch += Time.deltaTime;
+            } else {
+                this.lastPingSentStopwatch = 0;
+                Byte[] msg = new Byte[3];
+                msg[0] = 0x01;
+                msg[1] = 0x00;
+                msg[2] = 0x02;
+                hostConn.txQ.Enqueue(msg);
+            }
+        }
+    }
+    
+    void Log(String s) {
+        txtLog.text += (s + "\n");
+        Debug.Log(s);
     }
 }
