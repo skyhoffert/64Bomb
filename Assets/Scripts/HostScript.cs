@@ -10,27 +10,27 @@ public class HostScript : MonoBehaviour {
 
     public GameObject network;
 
-    private List<GameObject> staticObjs;
-    private List<GameObject> dynamicObjs;
+    // Handles network sharing objects.
+    private Dictionary<string, GameObject> objMap;
 
     public Text txtLog;
 
     private Queue rxQ;
     private Queue txQ;
 
-    private Connection[] clientConns;
+    private List<Connection> clientConns;
 
     private const int MAX_CONNS = 1;
 
     private bool permissionToHost = false;
-    private int clientConnsAdded = 0;
 
     private float lastPingSentStopwatch = 0;
 
     void Start() {
-        staticObjs = new List<GameObject>();
-        dynamicObjs = new List<GameObject>();
+        objMap = new Dictionary<string, GameObject>();
 
+        clientConns = new List<Connection>();
+        
         StartGame();
 
         Init();
@@ -79,7 +79,7 @@ public class HostScript : MonoBehaviour {
                     this.permissionToHost = true;
                 }
             } else if (buf[2] == 0x16) { // HERE_CLIENT_ADDRESS
-                String IP = Connection.IPBufToStr(buf, 3);
+                string IP = Connection.IPBufToStr(buf, 3);
                 Log("Got IP: " + IP + "");
                 int port = Connection.PortBufToInt(buf, 7);
                 Log("Got Port: " + port + "");
@@ -97,7 +97,7 @@ public class HostScript : MonoBehaviour {
             }
         }
 
-        if (clientConns[0].rxQ.Count > 0) {
+        if (clientConns.Count > 0 && clientConns[0].rxQ.Count > 0) {
             Byte[] buf = (Byte[]) clientConns[0].rxQ.Dequeue();
 
             if (buf[2] == 0x02) { // PING
@@ -121,7 +121,8 @@ public class HostScript : MonoBehaviour {
             }
         }
 
-        if (this.permissionToHost && this.clientConnsAdded == 0) {
+        if (this.permissionToHost && this.clientConns.Count < 1) {
+            clientConns.Add(new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000)));
             // ADD_HOST_CONNECTION
             Byte[] msg = new Byte[4];
             msg[0] = 0x01;
@@ -129,14 +130,13 @@ public class HostScript : MonoBehaviour {
             msg[2] = 0x0b;
             msg[3] = 0x00;
             clientConns[0].txQ.Enqueue(msg);
-            this.clientConnsAdded++;
         }
 
         if (Input.GetKeyDown(KeyCode.Escape)) {
             SceneManager.LoadScene("SampleScene");
         }
 
-        if (this.clientConnsAdded > 0) {
+        if (this.clientConns.Count > 0) {
             if (this.lastPingSentStopwatch < 1) {
                 this.lastPingSentStopwatch += Time.deltaTime;
             } else {
@@ -171,12 +171,9 @@ public class HostScript : MonoBehaviour {
         msg[2] = 0x06;
         msg[3] = 0x00;
         txQ.Enqueue(msg);
-
-        clientConns = new Connection[MAX_CONNS];
-        clientConns[0] = new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000));
     }
 
-    void AddObject(int whicharr, int type, Vector3 pos) {
+    void AddObject(string id, int type, Vector3[] pars, int[] parTypes) {
         GameObject newobj = new GameObject();
         // TODO: remove the destroys below
         if (type == 0) {
@@ -186,52 +183,65 @@ public class HostScript : MonoBehaviour {
             Destroy(newobj);
             newobj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             newobj.AddComponent<Rigidbody>();
+            newobj.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezePositionZ;
         }
 
-        if (whicharr == 0) {
-            staticObjs.Add(newobj);
-        } else if (whicharr == 1) {
-            dynamicObjs.Add(newobj);
+        objMap.Add(id, newobj);
+
+        for (int i = 0; i < parTypes.Length; i++) {
+            if (parTypes[i] == 0) {
+                newobj.transform.position = pars[i];
+            } else if (parTypes[i] == 1) {
+                newobj.transform.rotation = Quaternion.Euler(pars[i].x,pars[i].y,pars[i].z);
+            } else if (parTypes[i] == 2) {
+                newobj.transform.localScale = pars[i];
+            }
         }
 
-        newobj.transform.position = pos;
+        clientConns.ForEach(delegate(Connection c) {
+            List<Byte> msg = new List<Byte>();
+            msg.Add(0x01);
+            msg.Add(0x00);
+            msg.Add(0x81);
+            char[] idar = id.ToCharArray();
+            for (int i = 0; i < idar.Length; i++) {
+                msg.Add((Byte)idar[i]);
+            }
+            msg.Add(0x00); // NULL byte for string
+            c.txQ.Enqueue(msg.ToArray());
+        });
     }
 
-    void UpdateObject(int whicharr, int idx, int updatetype, Vector3 par) {
-        GameObject obj = new GameObject();
-        if (whicharr == 0) {
-            Destroy(obj);
-            obj = staticObjs[idx];
-        } else if (whicharr == 1) {
-            Destroy(obj);
-            obj = dynamicObjs[idx];
-        }
+    void UpdateObject(string id, Vector3[] pars, int[] parTypes) {
+        GameObject obj = objMap[id];
 
-        if (updatetype == 0) {
-            obj.transform.position = par;
-        } else if (updatetype == 1) {
-            obj.transform.rotation = Quaternion.Euler(par.x,par.y,par.z);
-        } else if (updatetype == 2) {
-            obj.transform.localScale = par;
+        for (int i = 0; i < parTypes.Length; i++) {
+            if (parTypes[i] == 0) {
+                obj.transform.position = pars[i];
+            } else if (parTypes[i] == 1) {
+                obj.transform.rotation = Quaternion.Euler(pars[i].x,pars[i].y,pars[i].z);
+            } else if (parTypes[i] == 2) {
+                obj.transform.localScale = pars[i];
+            }
         }
     }
 
     void StartGame() {
-        AddObject(0, 0, new Vector3(0, -3, 0));
-        UpdateObject(0, 0, 2, new Vector3(20, 1, 1));
+        AddObject("base", 0, new Vector3[] {new Vector3(0, -3, 0) }, new int[] {0});
+        UpdateObject("base", new Vector3[] {new Vector3(20, 1, 1)}, new int[] {2});
         
-        AddObject(0, 0, new Vector3(-10, 0, 0));
-        UpdateObject(0, 1, 2, new Vector3(1, 10, 1));
+        AddObject("leftwall", 0, new Vector3[] {new Vector3(-10, 0, 0)}, new int[] {0});
+        UpdateObject("leftwall", new Vector3[] {new Vector3(1, 10, 1)}, new int[] {2});
         
-        AddObject(0, 0, new Vector3(10, 0, 0));
-        UpdateObject(0, 2, 2, new Vector3(1, 10, 1));
+        AddObject("rightwall", 0, new Vector3[] {new Vector3(10, 0, 0)}, new int[] {0});
+        UpdateObject("rightwall", new Vector3[] {new Vector3(1, 10, 1)}, new int[] {2});
         
-        AddObject(1, 1, new Vector3(0, 3, 0));
+        AddObject("ball", 1, new Vector3[] {new Vector3(0, 3, 0)}, new int[] {0});
 
         // TODO: pass this information to the client.
     }
 
-    void Log(String s) {
+    void Log(string s) {
         txtLog.text += (s + "\n");
         Debug.Log(s);
     }
