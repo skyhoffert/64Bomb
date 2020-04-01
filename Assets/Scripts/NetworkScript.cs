@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using System.Threading;
-using System; // for Byte
+using System; // for byte
 using System.Text; // for Encoding
 using System.Net.Sockets; // for UdpClient
 using System.Net; // for IPEndPoint
 
 public class Connection {
 
-    public static String IPBufToStr(Byte[] buf, int idx) {
+    public static String IPBufToStr(byte[] buf, int idx) {
         String str = "";
         str += ((int)buf[idx+0]).ToString();
         str += ".";
@@ -22,13 +22,41 @@ public class Connection {
         return str;
     }
 
-    public static int PortBufToInt(Byte[] buf, int idx) {
+    public static int PortBufToInt(byte[] buf, int idx) {
         int p = 0;
         p += ((int)buf[idx+0] << 24);
         p += ((int)buf[idx+1] << 16);
         p += ((int)buf[idx+2] << 8);
         p += ((int)buf[idx+3] << 0);
         return p;
+    }
+
+    public static byte[] FloatToByteArr_64B(float f) {
+        float adjustedf = f*1000;
+        int intval = (int)adjustedf;
+        byte[] encoded = new byte[4];
+        encoded[0] = (byte) ((intval >> 24) & 0xff);
+        encoded[1] = (byte) ((intval >> 16) & 0xff);
+        encoded[2] = (byte) ((intval >>  8) & 0xff);
+        encoded[3] = (byte) ((intval >>  0) & 0xff);
+        return encoded;
+    }
+
+    // TODO: comment. returns 0 on success
+    public static int EncodeVec3InList(List<byte> buf, Vector3 vector) {
+        byte[] tmp = FloatToByteArr_64B(vector.x);
+        for (int i = 0; i < 4; i++) {
+            buf.Add(tmp[i]);
+        }
+        tmp = FloatToByteArr_64B(vector.y);
+        for (int i = 0; i < 4; i++) {
+            buf.Add(tmp[i]);
+        }
+        tmp = FloatToByteArr_64B(vector.z);
+        for (int i = 0; i < 4; i++) {
+            buf.Add(tmp[i]);
+        }
+        return 0;
     }
 
     private Thread thrRx;
@@ -48,6 +76,9 @@ public class Connection {
     
     public float ping; // In this file to provide accurate time measurement between ping and pong.
     private float pingSentTime; // TODO: only works for a single ping and doesn't check ID.
+
+    // TODO: it would be nice if there was a variable here to determine if a connection is active.
+    //       also, if pings were sent in the background to check this, that might be okay.
 
     private bool rxChange = false;
     private bool txChange = false;
@@ -79,7 +110,7 @@ public class Connection {
 
     ~Connection() {
         // Kill the connection.
-        Byte[] msg = new Byte[3];
+        byte[] msg = new byte[3];
         msg[0] = 0x01;
         msg[1] = 0x00;
         msg[2] = 0xff;
@@ -102,7 +133,7 @@ public class Connection {
     
     void RxThread() {
         IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
-        Byte[] buf;
+        byte[] buf;
 
         while (thrActive) {
             if (rxChange) {
@@ -136,7 +167,7 @@ public class Connection {
             }
 
             if (txQ.Count > 0) {
-                Byte[] dq = (Byte[])txQ.Dequeue();
+                byte[] dq = (byte[])txQ.Dequeue();
                 if (dq[0] == 0x00) {
                     Debug.Log("Bad TX dequeue");
                 } else {

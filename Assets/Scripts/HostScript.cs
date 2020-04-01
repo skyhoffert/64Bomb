@@ -4,8 +4,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
-using System; // for Byte
-
 public class HostScript : MonoBehaviour {
 
     public GameObject network;
@@ -26,12 +24,14 @@ public class HostScript : MonoBehaviour {
 
     private float lastPingSentStopwatch = 0;
 
+    private bool readyToStart = false;
+    private bool started = false;
+    private float timeWaitingToStart = 4;
+
     void Start() {
         objMap = new Dictionary<string, GameObject>();
 
         clientConns = new List<Connection>();
-        
-        StartGame();
 
         Init();
     }
@@ -43,10 +43,10 @@ public class HostScript : MonoBehaviour {
         }
 
         if (rxQ.Count > 0) {
-            Byte[] buf = (Byte[]) rxQ.Dequeue();
+            byte[] buf = (byte[]) rxQ.Dequeue();
 
             if (buf[2] == 0x02) { // PING
-                Byte[] msg = new Byte[4];
+                byte[] msg = new byte[4];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x03;
@@ -58,7 +58,7 @@ public class HostScript : MonoBehaviour {
                 Log("Server ping: " + ping + " ms");
             } else if (buf[2] == 0x07) { // YOU_CAN_HOST
                 if (buf[3] == 0x00) {
-                    Byte[] msg = new Byte[4];
+                    byte[] msg = new byte[4];
                     msg[0] = 0x01;
                     msg[1] = 0x42;
                     msg[2] = 0x08;
@@ -69,7 +69,7 @@ public class HostScript : MonoBehaviour {
                 }
             } else if (buf[2] == 0x09) { // YOU_WILL_HOST
                 if (buf[3] == 0x42) {
-                    Byte[] msg = new Byte[4];
+                    byte[] msg = new byte[4];
                     msg[0] = 0x01;
                     msg[1] = 0x00;
                     msg[2] = 0x0a;
@@ -87,21 +87,24 @@ public class HostScript : MonoBehaviour {
                 clientConns[0].Connect(IP, port);
 
                 // Send 3 pings
-                Byte[] msg = new Byte[3];
+                byte[] msg = new byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x02;
                 clientConns[0].txQ.Enqueue(msg);
                 clientConns[0].txQ.Enqueue(msg);
                 clientConns[0].txQ.Enqueue(msg);
+
+                // DEBUG
+                readyToStart = true;
             }
         }
 
         if (clientConns.Count > 0 && clientConns[0].rxQ.Count > 0) {
-            Byte[] buf = (Byte[]) clientConns[0].rxQ.Dequeue();
+            byte[] buf = (byte[]) clientConns[0].rxQ.Dequeue();
 
             if (buf[2] == 0x02) { // PING
-                Byte[] msg = new Byte[4];
+                byte[] msg = new byte[4];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x03;
@@ -111,7 +114,7 @@ public class HostScript : MonoBehaviour {
                Log("Client ping: " + clientConns[0].ping + " ms");
             } else if (buf[2] == 0x0c) { // ACK_HOST_CONNECTION
                 Log("ACK_HOST_CONNECTION");
-                Byte[] msg = new Byte[3];
+                byte[] msg = new byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x02;
@@ -124,7 +127,7 @@ public class HostScript : MonoBehaviour {
         if (this.permissionToHost && this.clientConns.Count < 1) {
             clientConns.Add(new Connection(PlayerPrefs.GetString("ServerIP", "127.0.0.1"), PlayerPrefs.GetInt("ServerPort", 5000)));
             // ADD_HOST_CONNECTION
-            Byte[] msg = new Byte[4];
+            byte[] msg = new byte[4];
             msg[0] = 0x01;
             msg[1] = 0x00;
             msg[2] = 0x0b;
@@ -141,11 +144,22 @@ public class HostScript : MonoBehaviour {
                 this.lastPingSentStopwatch += Time.deltaTime;
             } else {
                 this.lastPingSentStopwatch = 0;
-                Byte[] msg = new Byte[3];
+                byte[] msg = new byte[3];
                 msg[0] = 0x01;
                 msg[1] = 0x00;
                 msg[2] = 0x02;
                 clientConns[0].txQ.Enqueue(msg);
+            }
+        }
+
+        // DEBUG: game starts some time after client connects.
+        if (readyToStart) {
+            if (timeWaitingToStart > 0) {
+                timeWaitingToStart -= Time.deltaTime;
+            } else {
+                readyToStart = false;
+                started = true;
+                StartGame();
             }
         }
     }
@@ -158,14 +172,14 @@ public class HostScript : MonoBehaviour {
             return;
         }
         
-        Byte[] msg = new Byte[3];
+        byte[] msg = new byte[3];
         msg[0] = 0x01;
         msg[1] = 0x00;
         msg[2] = 0x02;
         txQ.Enqueue(msg);
 
         // Ask now if you can host.
-        msg = new Byte[4];
+        msg = new byte[4];
         msg[0] = 0x01;
         msg[1] = 0x00;
         msg[2] = 0x06;
@@ -199,15 +213,19 @@ public class HostScript : MonoBehaviour {
         }
 
         clientConns.ForEach(delegate(Connection c) {
-            List<Byte> msg = new List<Byte>();
+            List<byte> msg = new List<byte>();
             msg.Add(0x01);
             msg.Add(0x00);
             msg.Add(0x81);
             char[] idar = id.ToCharArray();
             for (int i = 0; i < idar.Length; i++) {
-                msg.Add((Byte)idar[i]);
+                msg.Add((byte)idar[i]);
             }
             msg.Add(0x00); // NULL byte for string
+            msg.Add((byte)(type&0xff));
+            msg.Add(0x00);
+            Connection.EncodeVec3InList(msg, pars[0]);
+            msg.Add(0xff);
             c.txQ.Enqueue(msg.ToArray());
         });
     }
@@ -227,14 +245,11 @@ public class HostScript : MonoBehaviour {
     }
 
     void StartGame() {
-        AddObject("base", 0, new Vector3[] {new Vector3(0, -3, 0) }, new int[] {0});
-        UpdateObject("base", new Vector3[] {new Vector3(20, 1, 1)}, new int[] {2});
+        AddObject("base", 0, new Vector3[] {new Vector3(0, -3, 0), new Vector3(20, 1, 1) }, new int[] {0, 2});
         
-        AddObject("leftwall", 0, new Vector3[] {new Vector3(-10, 0, 0)}, new int[] {0});
-        UpdateObject("leftwall", new Vector3[] {new Vector3(1, 10, 1)}, new int[] {2});
+        AddObject("leftwall", 0, new Vector3[] {new Vector3(-10, 0, 0), new Vector3(1, 10, 1)}, new int[] {0, 2});
         
-        AddObject("rightwall", 0, new Vector3[] {new Vector3(10, 0, 0)}, new int[] {0});
-        UpdateObject("rightwall", new Vector3[] {new Vector3(1, 10, 1)}, new int[] {2});
+        AddObject("rightwall", 0, new Vector3[] {new Vector3(10, 0, 0), new Vector3(1, 10, 1)}, new int[] {0, 2});
         
         AddObject("ball", 1, new Vector3[] {new Vector3(0, 3, 0)}, new int[] {0});
 
