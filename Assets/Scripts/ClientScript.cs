@@ -148,6 +148,8 @@ public class ClientScript : MonoBehaviour {
                 string objname = Encoding.UTF8.GetString(tmpname.ToArray(), 0, tmpname.Count);
                 int type = buf[3+namelen+1];
                 Log("Add obj called " + objname + " of type " + type);
+                int velidx = 3+namelen+2;
+                Log("got x vector val of " + Connection.ByteArrToFloat_64B(buf, velidx));
             }
         }
 

@@ -25,7 +25,6 @@ public class HostScript : MonoBehaviour {
     private float lastPingSentStopwatch = 0;
 
     private bool readyToStart = false;
-    private bool started = false;
     private float timeWaitingToStart = 4;
 
     void Start() {
@@ -158,7 +157,6 @@ public class HostScript : MonoBehaviour {
                 timeWaitingToStart -= Time.deltaTime;
             } else {
                 readyToStart = false;
-                started = true;
                 StartGame();
             }
         }

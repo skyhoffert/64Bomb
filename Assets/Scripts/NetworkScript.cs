@@ -31,6 +31,8 @@ public class Connection {
         return p;
     }
 
+    // TODO: this may not be correct...
+    //       perhaps byte is being treated as a signed integer in conversion
     public static byte[] FloatToByteArr_64B(float f) {
         float adjustedf = f*1000;
         int intval = (int)adjustedf;
@@ -39,7 +41,24 @@ public class Connection {
         encoded[1] = (byte) ((intval >> 16) & 0xff);
         encoded[2] = (byte) ((intval >>  8) & 0xff);
         encoded[3] = (byte) ((intval >>  0) & 0xff);
+        string t = "val: ";
+        for (int i = 0; i < 4; i++) {
+            t += encoded[i] + ", ";
+        }
+        Debug.Log(t);
         return encoded;
+    }
+    
+    // TODO: comment. return float that was decoded
+    // TODO: this is not correct...
+    public static float ByteArrToFloat_64B(byte[] buf, int sidx) {
+        int intval = 0;
+        intval |= (int) (((uint) (buf[sidx+0])) << 24);
+        intval |= (int) (((uint) (buf[sidx+1])) << 16);
+        intval |= (int) (((uint) (buf[sidx+2])) <<  8);
+        intval |= (int) (((uint) (buf[sidx+3])) <<  0);
+        float decval = ((float)intval) / 1000f;
+        return decval;
     }
 
     // TODO: comment. returns 0 on success
